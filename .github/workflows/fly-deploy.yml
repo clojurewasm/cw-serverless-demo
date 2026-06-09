@@ -1,0 +1,24 @@
+name: Fly Deploy
+
+# Auto-deploy to fly.io on push to main. Requires a FLY_API_TOKEN repo secret
+# (Settings → Secrets and variables → Actions). Generate one with:
+#   fly tokens create deploy -a cw-serverless-demo
+on:
+  push:
+    branches: [main]
+
+# Never run two deploys of this app concurrently; a newer push supersedes.
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
