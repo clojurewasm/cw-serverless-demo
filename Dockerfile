@@ -17,9 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN arch="$(uname -m)" && \
     curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${arch}-linux-${ZIG_VERSION}.tar.xz" \
       | tar -xJ -C /opt && ln -s /opt/zig-*-linux-*/zig /usr/local/bin/zig
+# -Dcpu=baseline is REQUIRED, not an optimization knob: `zig build` defaults to the
+# build host's native CPU, so a binary built on a fly remote builder with newer
+# instructions (AVX etc.) crashes with SIGILL ("Illegal instruction", exit 132) on
+# a shared-cpu run machine that lacks them. baseline = portable across fly CPUs.
 RUN git clone --branch "${CLJW_REF}" --depth 1 \
       https://github.com/clojurewasm/ClojureWasm.git /src/cljw && \
-    cd /src/cljw && zig build -Dwasm -Doptimize=ReleaseSafe && \
+    cd /src/cljw && zig build -Dwasm -Doptimize=ReleaseSafe -Dcpu=baseline && \
     cp zig-out/bin/cljw /usr/local/bin/cljw
 
 # --- Stage 2: runtime (cljw + the committed app: server + static SPA + wasm) ---
