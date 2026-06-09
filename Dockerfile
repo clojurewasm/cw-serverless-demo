@@ -15,8 +15,8 @@ ARG CLJW_REF=cw-from-scratch
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl xz-utils git && rm -rf /var/lib/apt/lists/*
 RUN arch="$(uname -m)" && \
-    curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${arch}-${ZIG_VERSION}.tar.xz" \
-      | tar -xJ -C /opt && ln -s /opt/zig-linux-*/zig /usr/local/bin/zig
+    curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${arch}-linux-${ZIG_VERSION}.tar.xz" \
+      | tar -xJ -C /opt && ln -s /opt/zig-*-linux-*/zig /usr/local/bin/zig
 RUN git clone --branch "${CLJW_REF}" --depth 1 \
       https://github.com/clojurewasm/ClojureWasm.git /src/cljw && \
     cd /src/cljw && zig build -Dwasm -Doptimize=ReleaseSafe && \
