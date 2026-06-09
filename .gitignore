@@ -1,0 +1,33 @@
+# Dependency / build caches — never committed.
+/node_modules
+/.shadow-cljs
+/.cpcache
+
+# run_local.sh clones + builds cljw here (first run)
+/.cache
+
+# Zig build cache (cljw build)
+**/.zig-cache
+
+# cargo wasm build output (regenerate via scripts/build_wasm.sh)
+**/target
+
+# SQLite store — created + seeded at runtime by db.clj; a fly volume persists it.
+/data
+
+# Vendored SQLite amalgamation — downloaded by wasm-src/sqlite/build_sqlite.sh,
+# not committed (see PROVENANCE.md). The built sqlite3.wasm IS committed.
+/wasm-src/sqlite/sqlite3.c
+/wasm-src/sqlite/sqlite3.h
+
+*.log
+.DS_Store
+
+# Local env (direnv): real secrets live in .envrc (gitignored); .envrc.example is
+# the committed template. Deploy secrets go to `fly secrets set …`, not git.
+/.envrc
+
+# Frontend: the optimized release bundle (resources/public/js/main.js +
+# manifest.edn) IS committed so the repo deploys self-contained. Only the
+# dev-watch runtime dir (shadow-cljs `watch`) is excess and ignored.
+/resources/public/js/cljs-runtime

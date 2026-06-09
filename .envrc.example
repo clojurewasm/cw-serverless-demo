@@ -1,0 +1,11 @@
+# Local environment for the bookshelf demo (direnv). Copy to .envrc, fill in,
+# then run `direnv allow`. .envrc is gitignored — never commit real secrets.
+# On fly.io, set the same values with `fly secrets set …` instead of a file.
+
+# Google OAuth Web-application client id. Add your local origin
+# (http://localhost:8090) and your deployed origin as authorized JavaScript
+# origins in the Google Cloud console. Sign-in stays disabled until this is set.
+export GOOGLE_CLIENT_ID="xxxxxxxx.apps.googleusercontent.com"
+
+# Optional: local port (default 8090).
+# export PORT=8090

@@ -1,0 +1,11 @@
+{:deps {:aliases [:dev]}
+ :nrepl {:port 9631}
+ :dev-http {3001 "resources/public"}
+ :js-options {:js-package-dirs ["node_modules"]}
+ :builds
+ {:app
+  {:target :browser
+   :output-dir "resources/public/js"
+   :asset-path "/js"
+   :modules {:main {:entries [bookshelf.core] :init-fn bookshelf.core/init}}
+   :compiler-options {:output-feature-set :es2020 :infer-externs :auto}}}}

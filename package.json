@@ -1,0 +1,20 @@
+{
+  "name": "clojurewasm-bookshelf",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "vendor-css": "mkdir -p resources/public/css && cp node_modules/@mantine/core/styles.css resources/public/css/mantine-core.css && cp node_modules/@mantine/notifications/styles.css resources/public/css/mantine-notifications.css",
+    "dev": "npm run vendor-css && npx shadow-cljs watch app",
+    "release": "npm run vendor-css && npx shadow-cljs release app"
+  },
+  "dependencies": {
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "process": "0.11.10",
+    "@mantine/core": "^9.2.2",
+    "@mantine/hooks": "^9.2.2",
+    "@mantine/notifications": "^9.2.2",
+    "@phosphor-icons/react": "^2.1.10"
+  },
+  "devDependencies": { "shadow-cljs": "3.4.11" }
+}

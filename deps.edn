@@ -1,0 +1,9 @@
+{:paths ["src" "resources"]
+ :deps {thheller/shadow-cljs {:mvn/version "3.4.11"}
+        io.factorhouse/hsx   {:mvn/version "0.1.24"}
+        io.factorhouse/rfx   {:mvn/version "0.1.18"}}
+ :aliases
+ {:dev {:extra-deps {binaryage/devtools {:mvn/version "1.0.7"}}}
+  ;; Run the bookshelf backend ON cljw (native, no babashka):
+  ;;   cljw-wasm -M:cljw -m bookshelf.server 8080
+  :cljw {:extra-paths ["server"]}}}
