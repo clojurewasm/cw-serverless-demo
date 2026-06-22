@@ -4,9 +4,13 @@
 # cljw is built FROM SOURCE (no assumption about your machine, no sibling repo):
 # the pinned ClojureWasm ref is cloned and built ReleaseSafe with -Dwasm (the
 # bookshelf drives SQLite + cover colours through cljw's Wasm FFI). zwasm resolves
-# via ClojureWasm's build.zig.zon tag pin. The build is cached under .cache/ (first
-# run only). This is the SAME way the Dockerfile obtains cljw — local and fly are
-# symmetric.
+# via ClojureWasm's build.zig.zon tag pin (v2.0.0-alpha.3). The build is cached
+# under .cache/ (first run only). This is the SAME way the Dockerfile obtains cljw —
+# local and fly are symmetric.
+#
+# The Wasm FFI runs JIT-compiled by default (cljw ref v1.0.0-alpha.1+: (wasm/load …)
+# rides zwasm's :auto JIT engine). The JIT is a runtime default, not a build flag —
+# the build options are unchanged.
 #
 # Secrets / config come from the environment (direnv): copy .envrc.example to
 # .envrc, fill in GOOGLE_CLIENT_ID, `direnv allow`. Sign-in is disabled until it
@@ -21,7 +25,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-CLJW_REF="${CLJW_REF:-cw-from-scratch}"
+CLJW_REF="${CLJW_REF:-v1.0.0-alpha.1}"
 CACHE_DIR=".cache/cljw"
 CLJW="${CLJW:-$CACHE_DIR/zig-out/bin/cljw}"
 
