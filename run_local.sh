@@ -25,7 +25,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-CLJW_REF="${CLJW_REF:-v1.0.0}"
+CLJW_REF="${CLJW_REF:-v1.6.0}"
 CACHE_DIR=".cache/cljw"
 CLJW="${CLJW:-$CACHE_DIR/zig-out/bin/cljw}"
 
