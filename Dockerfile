@@ -15,7 +15,7 @@
 # JIT emits for the actual RUN CPU so baseline does not gate it.
 FROM debian:bookworm-slim AS build
 ARG ZIG_VERSION=0.16.0
-ARG CLJW_REF=v1.6.0
+ARG CLJW_REF=v1.7.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl xz-utils git && rm -rf /var/lib/apt/lists/*
 RUN arch="$(uname -m)" && \
