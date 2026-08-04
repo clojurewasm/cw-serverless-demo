@@ -1,8 +1,23 @@
 # serverless-v2 — Bookshelf on ClojureWasm (design)
 
+> **This is the PRE-IMPLEMENTATION design memo, kept as a record of the original
+> intent. The app has moved past it in three ways, so do not read this file as
+> documentation of what runs today — `README.md` is that.**
+>
+> | This memo says | What the app does |
+> |---|---|
+> | no Docker, local only | `Dockerfile` + `fly.toml`; deployed to fly.io, auto-deploy on push |
+> | accounts: username + salted hash | Google OIDC (`server/bookshelf/auth.clj`) |
+> | JSON API | EDN API (`server/bookshelf/server.clj`) |
+>
+> The rest — cljw as the web server, the Rust cover-colour module, SQLite
+> compiled to `wasm32-wasi` as the datastore — is accurate and is what the demo
+> is for. Kept rather than deleted because the *reasoning* below (why a wasm
+> SQLite instead of a Clojure-side store, why Ring-style) is still the reasoning.
+
 A small "bookshelf" web app — Google-Cloud-Bookshelf-like — that runs on **native
-`cljw`** (no JVM, no Docker, local only). It is the CFP's "real edge app anyone
-can try", demonstrating:
+`cljw`** (no JVM). It is the CFP's "real edge app anyone can try",
+demonstrating:
 
 1. **ClojureWasm as the web server.** The HTTP server is `cljw.http.server/run-server`
    (Ring-style), serving a ClojureScript SPA + a JSON API, all on the cljw binary.
@@ -16,7 +31,8 @@ can try", demonstrating:
 
 ## Feature set (CFP spec ∪ Google Bookshelf)
 
-- **Accounts**: register / log in (local — username + salted hash; cookie session).
+- **Accounts**: log in with Google (OIDC; cookie session). *(The memo originally
+  planned a local username + salted hash — see the note at the top.)*
 - **Own shelf**: CRUD books (title, author, description, labels, favourite).
 - **Other shelves**: view read-only; **copy** a book from another shelf to your own.
 - **Search**: across all books (title / author / label).

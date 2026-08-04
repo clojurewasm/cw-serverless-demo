@@ -10,12 +10,12 @@
 
 # --- Stage 1: build cljw (linux, ReleaseSafe, -Dwasm) from source ---
 # The Wasm FFI runs JIT-compiled by default (cljw ref v1.0.0+: (wasm/load …)
-# rides zwasm's :auto JIT engine, zwasm v2.0.0). The JIT is a runtime default,
+# rides zwasm's :auto JIT engine, zwasm v2.4.1). The JIT is a runtime default,
 # not a build flag — the build options below (incl. -Dcpu=baseline) are unchanged; the
 # JIT emits for the actual RUN CPU so baseline does not gate it.
 FROM debian:bookworm-slim AS build
 ARG ZIG_VERSION=0.16.0
-ARG CLJW_REF=v1.7.0
+ARG CLJW_REF=v1.8.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl xz-utils git && rm -rf /var/lib/apt/lists/*
 RUN arch="$(uname -m)" && \

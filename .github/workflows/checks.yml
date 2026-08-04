@@ -1,0 +1,17 @@
+name: checks
+
+# The version pins are the thing that rotted: run_local.sh sat at cljw v1.0.0
+# through two bumps because a bump was a manual sweep. This makes the sweep's
+# completeness a build failure rather than a memory exercise.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  version-pins:
+    name: version pins agree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: bash scripts/check_version_pins.sh

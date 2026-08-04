@@ -46,8 +46,17 @@ fly deploy
   and no built-in replication — fine for a single-machine demo. For HA you would
   add LiteFS / Litestream / Postgres; that's out of scope here.
 
-### Optional: auto-deploy on push (GitHub Actions)
+### Auto-deploy on push — already wired
 
-`.github/workflows/fly-deploy.yml` running `flyctl deploy --remote-only` on push,
-with a `FLY_API_TOKEN` repo secret
-([fly docs](https://fly.io/docs/launch/continuous-deployment-with-github-actions/)).
+`.github/workflows/fly-deploy.yml` runs `flyctl deploy --remote-only` on every
+push to `main`, and two deploys of this app never overlap (the workflow takes a
+`concurrency` group; a newer push cancels the one in flight).
+
+It needs a `FLY_API_TOKEN` repo secret (`fly tokens create deploy -a
+cw-serverless-demo`;
+[fly docs](https://fly.io/docs/launch/continuous-deployment-with-github-actions/)).
+Without it the workflow FAILS rather than skipping — a deploy you believed
+happened and did not is worse than a red check.
+
+**So: pushing to `main` deploys.** Land a change on a branch if you do not want
+that.
