@@ -4,7 +4,7 @@
 # cljw is built FROM SOURCE (no assumption about your machine, no sibling repo):
 # the pinned ClojureWasm ref is cloned and built ReleaseSafe with -Dwasm (the
 # bookshelf drives SQLite + cover colours through cljw's Wasm FFI). zwasm resolves
-# via ClojureWasm's build.zig.zon tag pin (v2.4.1). The build is cached
+# via ClojureWasm's build.zig.zon tag pin (v2.5.0). The build is cached
 # under .cache/ (first run only). This is the SAME way the Dockerfile obtains cljw —
 # local and fly are symmetric.
 #
@@ -25,7 +25,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-CLJW_REF="${CLJW_REF:-v1.9.0}"
+CLJW_REF="${CLJW_REF:-v1.10.0}"
 CACHE_DIR=".cache/cljw"
 CLJW="${CLJW:-$CACHE_DIR/zig-out/bin/cljw}"
 
