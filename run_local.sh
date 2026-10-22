@@ -18,7 +18,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-CLJW_VERSION="${CLJW_VERSION:-v1.15.1}"
+CLJW_VERSION="${CLJW_VERSION:-v1.15.3}"
 CLJW_REPO="${CLJW_REPO:-BuddhiLW/ClojureWasm}"
 CACHE_DIR=".cache/cljw-${CLJW_VERSION}"
 CLJW="${CLJW:-$CACHE_DIR/cljw}"

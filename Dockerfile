@@ -14,8 +14,8 @@
 
 # --- Stage 1: fetch + verify the cljw release binary ---
 FROM debian:bookworm-slim AS cljw
-ARG CLJW_VERSION=v1.15.1
-ARG CLJW_SHA256=cb7ad4a5a137a70fb3ef061c782ef4ced5b9a5a9c3df5a7dcc6a444ac5d13a0c
+ARG CLJW_VERSION=v1.15.3
+ARG CLJW_SHA256=7b39356fd133291d2e7c639674ffd9cd01c1771fd79639483057e4be682c84c5
 ARG CLJW_REPO=BuddhiLW/ClojureWasm
 ARG TARGETARCH
 RUN apt-get update && apt-get install -y --no-install-recommends \
