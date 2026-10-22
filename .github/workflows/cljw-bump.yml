@@ -1,0 +1,131 @@
+name: cljw-bump
+
+# Follow the latest cljw release automatically. Daily (and on demand):
+#   1. resolve the latest BuddhiLW/ClojureWasm release and the sha256 of its
+#      cljw-linux-x86_64.tar.gz (from the .sha256 sidecar);
+#   2. stop if the Dockerfile already pins exactly that tag + sha;
+#   3. download the tarball, verify the sha256, and verify its build
+#      provenance attestation when the release has one (fatal), or warn when it
+#      has none (releases published before attestations existed);
+#   4. rewrite ARG CLJW_VERSION / ARG CLJW_SHA256 and every pinned mention
+#      (scripts/check_version_pins.sh --set-cljw), commit as github-actions[bot],
+#      push to main;
+#   5. build + push the image from that commit (image.yml as a reusable
+#      workflow), because a GITHUB_TOKEN push does not trigger other workflows.
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cljw-bump
+  cancel-in-progress: false
+
+env:
+  CLJW_REPO: BuddhiLW/ClojureWasm
+  ASSET: cljw-linux-x86_64.tar.gz
+
+jobs:
+  bump:
+    name: bump cljw pin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      attestations: read
+    outputs:
+      bumped: ${{ steps.commit.outputs.bumped }}
+      sha: ${{ steps.commit.outputs.sha }}
+      tag: ${{ steps.latest.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+
+      - name: Resolve the latest release
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$(gh release view -R "$CLJW_REPO" --json tagName --jq .tagName)"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::unexpected tag '$tag'"; exit 1; }
+          url="https://github.com/$CLJW_REPO/releases/download/$tag/$ASSET"
+          sha="$(curl -fsSL "$url.sha256" | awk '{print $1}')"
+          [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::bad sha256 sidecar for $tag: '$sha'"; exit 1; }
+          cur_tag="$(sed -n 's/^ARG CLJW_VERSION=//p' Dockerfile)"
+          cur_sha="$(sed -n 's/^ARG CLJW_SHA256=//p' Dockerfile)"
+          echo "latest $tag $sha; pinned $cur_tag $cur_sha"
+          if [[ "$tag" == "$cur_tag" && "$sha" == "$cur_sha" ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+          { echo "tag=$tag"; echo "sha=$sha"; echo "url=$url"; } >> "$GITHUB_OUTPUT"
+
+      - name: Download and verify the release binary
+        if: steps.latest.outputs.current == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.latest.outputs.tag }}
+          SHA: ${{ steps.latest.outputs.sha }}
+          URL: ${{ steps.latest.outputs.url }}
+        run: |
+          set -euo pipefail
+          dl="$RUNNER_TEMP/cljw-dl"
+          mkdir -p "$dl"
+          curl -fsSL -o "$dl/$ASSET" "$URL"
+          echo "$SHA  $dl/$ASSET" | sha256sum -c -
+          # Attestations exist only for releases cut after provenance signing
+          # was added. A 404 means "none published": warn and continue. Any
+          # other API failure, or a failed verify of an attested binary, fails.
+          if gh api "repos/$CLJW_REPO/attestations/sha256:$SHA" --silent 2> "$dl/att.err"; then
+            gh attestation verify "$dl/$ASSET" -R "$CLJW_REPO"
+          elif grep -q 'HTTP 404' "$dl/att.err"; then
+            echo "::warning::$TAG has no build provenance attestation; relying on the sha256 only"
+          else
+            cat "$dl/att.err" >&2
+            echo "::error::could not query attestations for $TAG"
+            exit 1
+          fi
+          tar -xzf "$dl/$ASSET" -C "$dl" cljw
+          "$dl/cljw" --version
+
+      - name: Rewrite the pins, commit, push
+        id: commit
+        env:
+          TAG: ${{ steps.latest.outputs.tag }}
+          SHA: ${{ steps.latest.outputs.sha }}
+          CURRENT: ${{ steps.latest.outputs.current }}
+        run: |
+          set -euo pipefail
+          if [[ "$CURRENT" == "true" ]]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          sed -i -E "s/^ARG CLJW_VERSION=.*/ARG CLJW_VERSION=$TAG/; s/^ARG CLJW_SHA256=.*/ARG CLJW_SHA256=$SHA/" Dockerfile
+          bash scripts/check_version_pins.sh --set-cljw "$TAG"
+          bash scripts/check_version_pins.sh
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Dockerfile run_local.sh README.md DEPLOY.md
+          if git diff --cached --quiet; then
+            echo "::error::pins differ from $TAG but the rewrite changed nothing"
+            exit 1
+          fi
+          git commit -m "chore: cljw $TAG"
+          git push origin HEAD:main
+          { echo "bumped=true"; echo "sha=$(git rev-parse HEAD)"; } >> "$GITHUB_OUTPUT"
+
+  image:
+    name: image for the bump commit
+    needs: bump
+    if: needs.bump.outputs.bumped == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/image.yml
+    with:
+      ref: ${{ needs.bump.outputs.sha }}

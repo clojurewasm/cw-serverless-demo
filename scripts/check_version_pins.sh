@@ -5,8 +5,8 @@
 #   bash scripts/check_version_pins.sh --set-cljw vX.Y.Z
 #   bash scripts/check_version_pins.sh --set-zwasm vX.Y.Z
 #
-# The repo states its pinned versions in several places — the Dockerfile ARG the
-# image builds from, the run_local.sh default a contributor builds from, and the
+# The repo states its pinned versions in several places: the Dockerfile ARG the
+# image installs, the run_local.sh default a contributor fetches, and the
 # README / DEPLOY prose a reader believes. They have to agree, and nothing made
 # them.
 #
@@ -88,4 +88,14 @@ for which in cljw zwasm; do
         echo "    version_pins: every $which mention says $vers ($n site(s))"
     fi
 done
+# The image installs the release tarball, so the Dockerfile must pin its digest
+# next to its version. --set-cljw cannot know the digest; .github/workflows/
+# cljw-bump.yml rewrites ARG CLJW_SHA256 itself, from the release's sidecar.
+if ! grep -Eq '^ARG CLJW_VERSION=v[0-9]+\.[0-9]+\.[0-9]+$' Dockerfile ||
+   ! grep -Eq '^ARG CLJW_SHA256=[0-9a-f]{64}$' Dockerfile; then
+    echo "check_version_pins: Dockerfile must carry ARG CLJW_VERSION=vX.Y.Z and ARG CLJW_SHA256=<64 hex>" >&2
+    fail=1
+else
+    echo "    version_pins: Dockerfile pins the cljw tarball sha256"
+fi
 exit "$fail"
