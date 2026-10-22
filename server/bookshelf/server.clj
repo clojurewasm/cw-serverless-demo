@@ -74,15 +74,33 @@
     (some (fn [kv] (let [[a b] (str/split kv #"=" 2)] (when (= a k) b)))
           (str/split qs #"&"))))
 
+(defn- cookie-path
+  "The session cookie's Path. Behind a gateway that strips a prefix (the app
+  reached at /bookshelf/ but seeing /), the server cannot know the prefix, so
+  it honours X-Forwarded-Prefix when the gateway sends one and falls back to /.
+  A relative request never needs it; it only keeps the cookie from leaking to
+  sibling apps on the same host."
+  [req]
+  (let [p (str/trim (or (get-in req [:headers "x-forwarded-prefix"]) ""))]
+    (if (and (str/starts-with? p "/") (not-any? #{\; \, \space \tab \newline \return} p))
+      p
+      "/")))
+
 (defn handler [req]
   (let [uri (:uri req) m (:request-method req)
         sub (current-sub req)]
     (cond
+      ;; --- liveness/readiness probe: constant, never touches the DB ---
+      (= uri "/healthz")
+      {:status 200 :headers {"content-type" "text/plain; charset=utf-8"
+                             "cache-control" "no-store"}
+       :body "ok"}
+
       ;; --- config (frontend reads the Google client id for GIS) ---
       (= uri "/api/config")
       (edn 200 {:google-client-id (auth/client-id)})
 
-      ;; --- Google OIDC sign-in ---
+      ;; --- Google OIDC sign-in (401 with a reason when GOOGLE_CLIENT_ID is unset) ---
       (and (= uri "/api/auth/google") (= m :post))
       (let [{:keys [id-token]} (body-edn req)
             res (auth/verify id-token)]
@@ -92,11 +110,14 @@
                 t (new-token)]
             (swap! sessions assoc t (:sub user))
             (edn 200 {:user user}
-                 {"set-cookie" (str "bsid=" t "; Path=/; SameSite=Lax")}))))
+                 {"set-cookie" (str "bsid=" t "; Path=" (cookie-path req)
+                                    "; HttpOnly; SameSite=Lax")}))))
 
       (and (= uri "/api/logout") (= m :post))
       (do (when-let [t (cookie-token req)] (swap! sessions dissoc t))
-          (edn 200 {:ok true}))
+          (edn 200 {:ok true}
+               {"set-cookie" (str "bsid=; Path=" (cookie-path req)
+                                  "; Max-Age=0; HttpOnly; SameSite=Lax")}))
 
       (= uri "/api/me")
       (edn 200 {:user (when sub (db/user-by-sub sub))})
@@ -139,7 +160,9 @@
 (defn -main [& args]
   (db/init!)
   (let [port (if (seq args) (Integer/parseInt (first args)) port-default)]
-    (println (str "Bookshelf on ClojureWasm — http://localhost:" port))
-    (println (str "  auth: Google OIDC  (GOOGLE_CLIENT_ID "
-                  (if (str/blank? (auth/client-id)) "NOT set — set it before sign-in)" "set)")))
+    (println (str "Bookshelf on ClojureWasm: http://0.0.0.0:" port))
+    (println (str "  auth: Google OIDC ("
+                  (if (str/blank? (auth/client-id))
+                    "GOOGLE_CLIENT_ID not set: browse-only, sign-in disabled)"
+                    "GOOGLE_CLIENT_ID set)")))
     (http/run-server handler {:port port})))

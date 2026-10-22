@@ -6,6 +6,6 @@
  {:app
   {:target :browser
    :output-dir "resources/public/js"
-   :asset-path "/js"
+   :asset-path "js"
    :modules {:main {:entries [bookshelf.core] :init-fn bookshelf.core/init}}
    :compiler-options {:output-feature-set :es2020 :infer-externs :auto}}}}

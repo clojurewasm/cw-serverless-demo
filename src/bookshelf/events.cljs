@@ -32,8 +32,11 @@
 
   (rfx/reg-event-fx :auth/logout
     (fn [{:keys [db]} _]
-      {:db (assoc db :user nil)
-       :http/send {:method "POST" :path "/api/logout" :body nil :on-ok [:noop] :on-err [:noop]}}))
+      ;; Signed out, the visitor keeps browsing; drop back to the all-books view
+      ;; since "My shelf" no longer exists for them.
+      {:db (assoc db :user nil :editing nil)
+       :http/send {:method "POST" :path "/api/logout" :body nil :on-ok [:noop] :on-err [:noop]}
+       :dispatch [:view/browse]}))
   (rfx/reg-event-db :noop (fn [db _] db))
 
   ;; ---- views & data ----

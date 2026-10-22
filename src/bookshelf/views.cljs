@@ -31,30 +31,29 @@
                                          :callback (fn [resp]
                                                      (dispatch [:auth/google (.-credential resp)]))})
                      (.renderButton g (.-current ref)
-                                    #js {:theme "filled_blue" :size "large" :width 280}))
+                                    #js {:theme "filled_blue" :size "medium" :shape "pill"
+                                         :text "signin"}))
                    (js/setTimeout render 200)))]
          (render))
        js/undefined)
      #js [client-id])
     [:div {:ref ref}]))
 
-(defn login-view []
+(defn- sign-in
+  "Header sign-in slot for an anonymous visitor. Browsing never needs an
+  account; signing in is offered only when the server has a GOOGLE_CLIENT_ID
+  (GET api/config). Without one the slot says so instead of rendering a button
+  that cannot work."
+  []
   (let [dispatch (rfx/use-dispatch)
         cid      (rfx/use-sub [:google-client-id])
         err      (rfx/use-sub [:auth-error])]
-    [:> Box {:style {:minHeight "100vh" :display "flex" :alignItems "center" :justifyContent "center"}}
-     [:> Paper {:withBorder true :shadow "md" :radius "md" :p "xl" :style {:width 380}}
-      [:> Group {:gap "xs" :mb "md" :align "center"}
-       (icon icons/books {:size 28 :weight "duotone" :color "var(--mantine-color-indigo-6)"})
-       [:> Title {:order 3} "Bookshelf on ClojureWasm"]]
-      [:> Text {:size "xs" :c "dimmed" :mb "lg"}
-       "A bookshelf running on native cljw, no JVM. Sign in with Google to keep your shelf."]
-      (if (str/blank? cid)
-        [:> Text {:c "red" :size "sm"}
-         "The server has no GOOGLE_CLIENT_ID configured — set it and restart to enable sign-in."]
-        [:> Box {:style {:display "flex" :justifyContent "center"}}
-         [gis-button cid dispatch]])
-      (when err [:> Text {:c "red" :size "sm" :mt "md"} err])]]))
+    [:> Group {:gap 6 :wrap "nowrap"}
+     (when err [:> Text {:c "red" :size "xs"} err])
+     (if (str/blank? cid)
+       [:> Tooltip {:label "This deployment has no Google client id configured"}
+        [:> Text {:size "xs" :c "dimmed"} "Sign-in disabled"]]
+       [gis-button cid dispatch])]))
 
 ;; ---------------------------------------------------------------- cards -----
 
@@ -145,8 +144,9 @@
        [:> Text {:size "xs" :c "gray.7" :fw 500} "on ClojureWasm"]]
       [:> Button {:size "xs" :variant (if (= view :browse) "light" "subtle")
                   :leftSection (icon icons/house {:size 14}) :onClick #(dispatch [:view/browse])} "Browse"]
-      [:> Button {:size "xs" :variant (if (= view :my-shelf) "light" "subtle")
-                  :leftSection (icon icons/shelf {:size 14}) :onClick #(dispatch [:view/my-shelf])} "My shelf"]
+      (when user
+        [:> Button {:size "xs" :variant (if (= view :my-shelf) "light" "subtle")
+                    :leftSection (icon icons/shelf {:size 14}) :onClick #(dispatch [:view/my-shelf])} "My shelf"])
       [:> Select {:size "xs" :placeholder "Other shelves" :w 170 :clearable true
                   :data (clj->js (mapv (fn [s] {:value (:sub s) :label (:name s)}) others))
                   :value (when (= view :shelf) viewing)
@@ -155,14 +155,17 @@
       [:> TextInput {:size "xs" :placeholder "Search…" :ref search :w 170
                      :leftSection (icon icons/search {:size 14})
                      :onKeyDown #(when (= "Enter" (.-key %)) (dispatch [:search/run (.. % -target -value)]))}]
-      [:> Button {:size "xs" :leftSection (icon icons/plus {:size 14}) :onClick #(dispatch [:book/new])} "Add"]
-      [:> Group {:gap 6 :wrap "nowrap"}
-       (when (seq (:picture user))
-         [:> Avatar {:src (:picture user) :size 28 :radius "xl"}])
-       [:> Text {:size "sm" :fw 500} (:name user)]
-       [:> Tooltip {:label "Sign out"}
-        [:> ActionIcon {:variant "subtle" :color "gray" :onClick #(dispatch [:auth/logout])}
-         (icon icons/signout {:size 18})]]]]]))
+      (if user
+        [:<>
+         [:> Button {:size "xs" :leftSection (icon icons/plus {:size 14}) :onClick #(dispatch [:book/new])} "Add"]
+         [:> Group {:gap 6 :wrap "nowrap"}
+          (when (seq (:picture user))
+            [:> Avatar {:src (:picture user) :size 28 :radius "xl"}])
+          [:> Text {:size "sm" :fw 500} (:name user)]
+          [:> Tooltip {:label "Sign out"}
+           [:> ActionIcon {:variant "subtle" :color "gray" :onClick #(dispatch [:auth/logout])}
+            (icon icons/signout {:size 18})]]]]
+        [sign-in])]]))
 
 (defn- shelf-title []
   (let [view (rfx/use-sub [:view]) viewing (rfx/use-sub [:viewing])
@@ -175,14 +178,14 @@
        (= view :shelf) (str (or owner-name "Someone") "'s shelf (read-only)")
        :else "All books")]))
 
-(defn app-root []
-  (let [user (rfx/use-sub [:user])]
-    (if-not user
-      [login-view]
-      [:> AppShell {:header #js {:height 56} :padding "md"}
-       [:> (.-Header AppShell) [header]]
-       [:> (.-Main AppShell)
-        [:> Container {:size "xl"}
-         [shelf-title]
-         [book-grid]
-         [editor-modal]]]])))
+(defn app-root
+  "Anonymous visitors browse every shelf read-only; signing in (when the server
+  has a Google client id) adds an own shelf plus add/edit/copy/favorite."
+  []
+  [:> AppShell {:header #js {:height 56} :padding "md"}
+   [:> (.-Header AppShell) [header]]
+   [:> (.-Main AppShell)
+    [:> Container {:size "xl"}
+     [shelf-title]
+     [book-grid]
+     [editor-modal]]]])
