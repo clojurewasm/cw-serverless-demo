@@ -1,62 +1,108 @@
-# Running & deploying the ClojureWasm bookshelf
+# Running and deploying the ClojureWasm bookshelf
 
-The app is **self-contained**: `cljw` is built from source (the pinned ClojureWasm
-ref, `-Dwasm` ReleaseSafe; zwasm via the `build.zig.zon` tag pin), and the SPA +
-Wasm modules are committed. Local and fly obtain `cljw` the same way — local via
-`run_local.sh`, fly via the root `Dockerfile`. SQLite and book-cover colours run
-in-process through `cljw`'s Wasm FFI (`wasm/sqlite3.wasm`, `wasm/cover_color.wasm`;
-see [`PROVENANCE.md`](./PROVENANCE.md)).
+The app is one `cljw` process serving the committed SPA, an EDN API and two
+committed Wasm modules (`wasm/sqlite3.wasm`, `wasm/cover_color.wasm`; see
+[`PROVENANCE.md`](./PROVENANCE.md)). `cljw` itself is the pinned release
+tarball from [BuddhiLW/ClojureWasm](https://github.com/BuddhiLW/ClojureWasm/releases),
+verified by sha256. Local runs and the image use the same artifact.
 
 ## Local
 
 ```sh
-cp .envrc.example .envrc        # then fill in GOOGLE_CLIENT_ID and `direnv allow`
-./run_local.sh                  # builds cljw on first run (~1 min), serves :8090
+cp .envrc.example .envrc        # optional: fill in GOOGLE_CLIENT_ID, then `direnv allow`
+./run_local.sh                  # serves http://localhost:8090
 ```
 
-Needs `git` + Zig 0.16 for the one-time `cljw` build (cached in `.cache/`). Config
-comes from the environment (direnv loads `.envrc`); the SQLite store is created +
-seeded at `data/books.db` on first run. Sign-in is disabled until `GOOGLE_CLIENT_ID`
-is set.
+The SQLite store is created and seeded at `data/books.db` on first run.
 
 ### Rebuilding the artifacts (only when you change them)
 
 ```sh
-npm ci && npm run release      # rebuild the SPA → resources/public/js/main.js
+npm ci && npm run release      # rebuild the SPA: resources/public/js/main.js (commit it)
 bash scripts/build_wasm.sh     # rebuild cover_color.wasm + sqlite3.wasm
 ```
 
-## Deploy to fly.io
+The SPA bundle is committed, so the image has no node or JDK stage.
 
-The `Dockerfile` + `fly.toml` are at the repo root with a repo-root build context,
-so you can deploy by **selecting this repo** ("Deploy from GitHub") or from a
-checkout:
+## Container image
+
+`ghcr.io/clojurewasm/cw-serverless-demo`, tags `main-<7-char sha>` and `latest`.
+
+| | |
+|---|---|
+| Port | `8080` (`PORT` overrides) |
+| Health | `GET /healthz` returns `200 ok`, never touches the DB |
+| User | UID/GID `10001`, non-root |
+| Root filesystem | read-only is supported |
+| Writable paths | `/app/data` (SQLite store, mount a volume) and `/tmp` |
+| `GOOGLE_CLIENT_ID` | optional; unset means browse-only, sign-in hidden, writes return 401 |
 
 ```sh
-fly launch                                   # first time: creates the app
-fly volumes create bookshelf_data --size 1 --region nrt   # persistent SQLite store
-fly secrets set GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
-fly deploy
+docker build -t cw-bookshelf .
+docker run --rm --read-only --tmpfs /tmp --user 10001 \
+  -v bookshelf-data:/app/data -p 8080:8080 cw-bookshelf
 ```
 
-- **Secrets**: `GOOGLE_CLIENT_ID` is a `fly secret`, never in git or the image.
-  Add your deployed origin to the Google console's authorized JavaScript origins.
-- **Persistence**: the `[mounts]` volume keeps `data/books.db` across deploys and
-  scale-to-zero restarts. Fly Volumes are per-machine NVMe with daily snapshots
-  and no built-in replication — fine for a single-machine demo. For HA you would
-  add LiteFS / Litestream / Postgres; that's out of scope here.
+## Kubernetes
 
-### Auto-deploy on push — already wired
+Served at <https://cljw.buddhilw.com/bookshelf/>. The gateway route must strip
+the `/bookshelf` prefix: the server sees `/`, `/api/...`, `/js/...`. Every URL
+the browser uses is relative, so the app needs no knowledge of the prefix. Two
+things the gateway should do:
 
-`.github/workflows/fly-deploy.yml` runs `flyctl deploy --remote-only` on every
-push to `main`, and two deploys of this app never overlap (the workflow takes a
-`concurrency` group; a newer push cancels the one in flight).
+- Redirect `/bookshelf` to `/bookshelf/` (relative URLs resolve against the
+  trailing slash).
+- Optionally send `X-Forwarded-Prefix: /bookshelf`; the session cookie then gets
+  `Path=/bookshelf` instead of `Path=/`.
 
-It needs a `FLY_API_TOKEN` repo secret (`fly tokens create deploy -a
-cw-serverless-demo`;
-[fly docs](https://fly.io/docs/launch/continuous-deployment-with-github-actions/)).
-Without it the workflow FAILS rather than skipping — a deploy you believed
-happened and did not is worse than a red check.
+Pod essentials:
 
-**So: pushing to `main` deploys.** Land a change on a branch if you do not want
-that.
+```yaml
+securityContext:            # pod
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001            # makes the PersistentVolume writable
+containers:
+  - name: bookshelf
+    image: ghcr.io/clojurewasm/cw-serverless-demo:latest
+    ports: [{containerPort: 8080}]
+    env:
+      - name: GOOGLE_CLIENT_ID          # optional
+        valueFrom: {secretKeyRef: {name: bookshelf, key: google-client-id, optional: true}}
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+    readinessProbe: {httpGet: {path: /healthz, port: 8080}}
+    livenessProbe:  {httpGet: {path: /healthz, port: 8080}}
+    volumeMounts:
+      - {name: data, mountPath: /app/data}
+      - {name: tmp,  mountPath: /tmp}
+volumes:
+  - {name: data, persistentVolumeClaim: {claimName: bookshelf-data}}
+  - {name: tmp,  emptyDir: {}}
+```
+
+Run one replica. SQLite lives on the volume and sessions live in process
+memory, so a second replica would neither share sessions nor be safe on a
+ReadWriteOnce volume. A restart signs everyone out; the books persist.
+
+## Google sign-in
+
+Sign-in uses Google Identity Services. The client id reaches the browser through
+`GET api/config`, read from `GOOGLE_CLIENT_ID` on each request, so setting the
+secret and restarting the pod is enough. In the Google Cloud console, the OAuth
+client (type: Web application) must list
+**`https://cljw.buddhilw.com`** under *Authorized JavaScript origins* (origins
+have no path, so not `/bookshelf/`). Add `http://localhost:8090` for local runs.
+
+## CI
+
+- `.github/workflows/image.yml`: on push to `main` (and on demand) builds and
+  pushes the image.
+- `.github/workflows/cljw-bump.yml`: daily, follows the latest cljw release. It
+  verifies the tarball sha256 and its build provenance attestation when the
+  release has one, rewrites the pins, commits `chore: cljw <tag>` to `main`,
+  then builds the image for that commit.
+- `.github/workflows/checks.yml`: `scripts/check_version_pins.sh` keeps every
+  cljw version mention and the Dockerfile sha256 pin in agreement.

@@ -12,7 +12,7 @@
 # cargo wasm build output (regenerate via scripts/build_wasm.sh)
 **/target
 
-# SQLite store — created + seeded at runtime by db.clj; a fly volume persists it.
+# SQLite store, created and seeded at runtime by db.clj; a volume persists it.
 /data
 
 # Vendored SQLite amalgamation — downloaded by wasm-src/sqlite/build_sqlite.sh,
@@ -24,7 +24,7 @@
 .DS_Store
 
 # Local env (direnv): real secrets live in .envrc (gitignored); .envrc.example is
-# the committed template. Deploy secrets go to `fly secrets set …`, not git.
+# the committed template. Deploy secrets go to a Kubernetes Secret, not git.
 /.envrc
 
 # Frontend: the optimized release bundle (resources/public/js/main.js +

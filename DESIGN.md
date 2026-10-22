@@ -6,7 +6,7 @@
 >
 > | This memo says | What the app does |
 > |---|---|
-> | no Docker, local only | `Dockerfile` + `fly.toml`; deployed to fly.io, auto-deploy on push |
+> | no Docker, local only | `Dockerfile`; a GHCR image run in Kubernetes at https://cljw.buddhilw.com/bookshelf/ (see `DEPLOY.md`) |
 > | accounts: username + salted hash | Google OIDC (`server/bookshelf/auth.clj`) |
 > | JSON API | EDN API (`server/bookshelf/server.clj`) |
 >

@@ -1,10 +1,10 @@
 # Local environment for the bookshelf demo (direnv). Copy to .envrc, fill in,
-# then run `direnv allow`. .envrc is gitignored — never commit real secrets.
-# On fly.io, set the same values with `fly secrets set …` instead of a file.
+# then run `direnv allow`. .envrc is gitignored; never commit real secrets.
+# In Kubernetes the same value comes from a Secret (see DEPLOY.md).
 
-# Google OAuth Web-application client id. Add your local origin
-# (http://localhost:8090) and your deployed origin as authorized JavaScript
-# origins in the Google Cloud console. Sign-in stays disabled until this is set.
+# Optional. Google OAuth Web-application client id. Its Authorized JavaScript
+# origins must include http://localhost:8090 (local) and https://cljw.buddhilw.com
+# (deployed). Unset means browse-only: sign-in hidden, writes return 401.
 export GOOGLE_CLIENT_ID="xxxxxxxx.apps.googleusercontent.com"
 
 # Optional: local port (default 8090).

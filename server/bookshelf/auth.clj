@@ -17,10 +17,9 @@
 
 (defn client-id
   "The Google OAuth client id, read from the GOOGLE_CLIENT_ID environment
-  variable — set locally via direnv (.envrc; see .envrc.example) and on fly.io
-  via `fly secrets set GOOGLE_CLIENT_ID=…`. Empty string when unset, which
-  disables sign-in with a clear message. Read each call so a value set after
-  startup is picked up."
+  variable (locally via direnv, .envrc; in Kubernetes from a Secret). Empty
+  string when unset: the SPA then hides sign-in and verify refuses with a clear
+  message. Read each call so a value set after startup is picked up."
   []
   (or (System/getenv "GOOGLE_CLIENT_ID") ""))
 
