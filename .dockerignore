@@ -1,0 +1,9 @@
+# Only deps.edn, server/, resources/ and wasm/ enter the image.
+.git
+node_modules
+.shadow-cljs
+.cpcache
+.cache
+data
+wasm-src
+resources/public/js/cljs-runtime
