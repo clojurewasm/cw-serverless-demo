@@ -1,9 +1,16 @@
 {:paths ["src" "resources"]
- :deps {thheller/shadow-cljs {:mvn/version "3.4.11"}
-        io.factorhouse/hsx   {:mvn/version "0.1.24"}
-        io.factorhouse/rfx   {:mvn/version "0.1.18"}}
+ ;; Top-level :deps stays EMPTY on purpose. cljw resolves top-level
+ ;; :mvn/version deps at startup (it downloads them into ~/.m2), so listing the
+ ;; frontend's JVM-side build deps here makes the server fetch the whole
+ ;; shadow-cljs tree before it serves (and fail on a read-only container). The
+ ;; frontend deps live under :dev, which shadow-cljs.edn activates
+ ;; ({:deps {:aliases [:dev]}}); cljw never sees them.
+ :deps {}
  :aliases
- {:dev {:extra-deps {binaryage/devtools {:mvn/version "1.0.7"}}}
-  ;; Run the bookshelf backend ON cljw (native, no babashka):
-  ;;   cljw-wasm -M:cljw -m bookshelf.server 8080
+ {:dev {:extra-deps {thheller/shadow-cljs {:mvn/version "3.4.11"}
+                     io.factorhouse/hsx   {:mvn/version "0.1.24"}
+                     io.factorhouse/rfx   {:mvn/version "0.1.18"}
+                     binaryage/devtools   {:mvn/version "1.0.7"}}}
+  ;; Run the bookshelf backend ON cljw (native, no JVM):
+  ;;   cljw -M:cljw -m bookshelf.server 8080
   :cljw {:extra-paths ["server"]}}}
